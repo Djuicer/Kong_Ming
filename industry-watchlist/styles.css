@@ -267,7 +267,12 @@ h2 {
 .copy-code-btn,
 .status-btn,
 .star-btn,
-.delete-btn {
+.watch-copy-btn,
+.edit-note-btn,
+.delete-btn,
+.bulk-delete-btn,
+.save-note-btn,
+.cancel-note-btn {
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--card);
@@ -323,6 +328,65 @@ h2 {
   font-weight: 700;
 }
 
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.bulk-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bulk-select input,
+.watch-select-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.selected-count {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bulk-delete-btn {
+  min-height: 32px;
+  margin-left: auto;
+  padding: 0 12px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: #FECACA;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bulk-delete-btn:hover:not(:disabled) {
+  color: var(--card);
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.bulk-delete-btn:disabled {
+  cursor: not-allowed;
+  color: var(--text-light);
+  background: #F3F4F6;
+  border-color: var(--border);
+  opacity: 0.72;
+}
+
 input,
 select,
 textarea {
@@ -341,7 +405,7 @@ select {
 }
 
 textarea {
-  min-height: 76px;
+  min-height: 92px;
   padding: 10px 12px;
   resize: vertical;
 }
@@ -369,12 +433,31 @@ textarea:focus {
 }
 
 .watch-card {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--card);
+}
+
+.watch-card.is-editing {
+  border-color: var(--accent-border);
+  background: linear-gradient(180deg, var(--card) 0%, #FBFDFF 100%);
+}
+
+.card-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.watch-select-checkbox {
+  margin-top: 6px;
+  flex: 0 0 auto;
+}
+
+.card-content {
+  min-width: 0;
 }
 
 .card-top {
@@ -382,6 +465,10 @@ textarea:focus {
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+}
+
+.card-title-box {
+  min-width: 0;
 }
 
 .title-line {
@@ -393,28 +480,28 @@ textarea:focus {
 
 .industry-name {
   color: var(--text-main);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .path {
-  margin-top: 4px;
+  margin-top: 3px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .card-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .star-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   color: var(--text-light);
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .star-btn.is-starred {
@@ -441,9 +528,9 @@ textarea:focus {
 }
 
 .status-btn {
-  min-width: 86px;
-  height: 36px;
-  padding: 0 12px;
+  min-width: 76px;
+  height: 32px;
+  padding: 0 10px;
   color: var(--accent);
   background: var(--accent-soft);
   border-color: var(--accent-border);
@@ -462,10 +549,62 @@ textarea:focus {
   border-color: #FECACA;
 }
 
+.watch-copy-btn,
+.edit-note-btn,
+.delete-btn,
+.save-note-btn,
+.cancel-note-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.watch-copy-btn,
+.edit-note-btn,
+.cancel-note-btn {
+  color: var(--text-muted);
+}
+
+.watch-copy-btn:hover,
+.edit-note-btn:hover,
+.cancel-note-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
 .delete-btn {
-  width: 36px;
-  height: 36px;
   color: var(--danger);
+}
+
+.save-note-btn {
+  color: var(--card);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.save-note-btn:hover {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+}
+
+.note-preview {
+  display: -webkit-box;
+  margin: 7px 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 13px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.note-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 
 .note-label {
@@ -476,12 +615,18 @@ textarea:focus {
   font-weight: 700;
 }
 
+.note-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 18px;
+  gap: 8px 16px;
   color: var(--text-light);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .empty-state {
@@ -577,6 +722,11 @@ textarea:focus {
 
   .picker-leaf-item {
     align-items: flex-start;
+  }
+
+  .bulk-delete-btn {
+    width: 100%;
+    margin-left: 0;
   }
 
   .card-actions,

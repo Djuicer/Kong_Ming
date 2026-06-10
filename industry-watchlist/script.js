@@ -2642,6 +2642,9 @@ const STORAGE_KEY = "industryWatchlist_v3";
 const statusList = ["观察中", "已选股", "已放弃"];
 
 let watchRecords = loadRecords();
+let selectedWatchItemIds = new Set();
+let editingNoteItemId = null;
+let editingNoteDraft = "";
 let toastTimer = null;
 let pickerState = {
   level: 1,
@@ -2657,6 +2660,9 @@ const elements = {
   level1Filter: document.querySelector("#level1Filter"),
   statusFilter: document.querySelector("#statusFilter"),
   starFilter: document.querySelector("#starFilter"),
+  selectAllVisible: document.querySelector("#selectAllVisible"),
+  selectedCount: document.querySelector("#selectedCount"),
+  bulkDeleteBtn: document.querySelector("#bulkDeleteBtn"),
   toast: document.querySelector("#toast")
 };
 
@@ -3062,8 +3068,10 @@ function getFilteredRecords() {
 
 function renderWatchlist() {
   const filteredRecords = getFilteredRecords();
+  pruneSelectedRecords();
   elements.watchCount.textContent = `${watchRecords.length} 条`;
   elements.watchlist.innerHTML = "";
+  renderBulkActions(filteredRecords);
 
   if (watchRecords.length === 0) {
     elements.watchlist.innerHTML = '<div class="empty-state">还没有加入任何行业。请从左侧行业选择器中添加无下级行业。</div>';
@@ -3080,14 +3088,40 @@ function renderWatchlist() {
   });
 }
 
+function renderBulkActions(filteredRecords) {
+  const visibleIds = filteredRecords.map((record) => record.id);
+  const selectedVisibleCount = visibleIds.filter((id) => selectedWatchItemIds.has(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+
+  elements.selectedCount.textContent = `已选择 ${selectedWatchItemIds.size} 条`;
+  elements.bulkDeleteBtn.disabled = selectedWatchItemIds.size === 0;
+  elements.selectAllVisible.checked = allVisibleSelected;
+  elements.selectAllVisible.disabled = visibleIds.length === 0;
+  elements.selectAllVisible.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+}
+
 function createWatchCard(record) {
   const card = document.createElement("article");
-  card.className = "watch-card";
+  card.className = `watch-card${editingNoteItemId === record.id ? " is-editing" : ""}`;
+
+  const main = document.createElement("div");
+  main.className = "card-main";
+
+  const selectCheckbox = document.createElement("input");
+  selectCheckbox.type = "checkbox";
+  selectCheckbox.className = "watch-select-checkbox";
+  selectCheckbox.checked = selectedWatchItemIds.has(record.id);
+  selectCheckbox.setAttribute("aria-label", `选择 ${formatRecordLabel(record.selectedCode, record.selectedName)}`);
+  selectCheckbox.addEventListener("change", (event) => toggleSelection(record.id, event.target.checked));
+
+  const content = document.createElement("div");
+  content.className = "card-content";
 
   const top = document.createElement("div");
   top.className = "card-top";
 
   const titleBox = document.createElement("div");
+  titleBox.className = "card-title-box";
 
   const titleLine = document.createElement("div");
   titleLine.className = "title-line";
@@ -3120,15 +3154,46 @@ function createWatchCard(record) {
   statusButton.title = "点击切换状态";
   statusButton.addEventListener("click", () => toggleStatus(record.id));
 
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.className = "watch-copy-btn";
+  copyButton.textContent = "复制代码";
+  copyButton.addEventListener("click", () => copyIndustryCode(record.selectedCode));
+
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "edit-note-btn";
+  editButton.textContent = "编辑备注";
+  editButton.addEventListener("click", () => startEditNote(record.id));
+
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.className = "delete-btn";
-  deleteButton.textContent = "删";
+  deleteButton.textContent = "删除";
   deleteButton.title = "删除记录";
   deleteButton.addEventListener("click", () => deleteRecord(record.id));
 
-  actions.append(starButton, statusButton, deleteButton);
+  actions.append(starButton, statusButton, copyButton, editButton, deleteButton);
   top.append(titleBox, actions);
+
+  const notePreview = document.createElement("p");
+  notePreview.className = "note-preview";
+  notePreview.textContent = `备注：${record.note ? record.note : "暂无"}`;
+
+  content.append(top, notePreview);
+
+  if (editingNoteItemId === record.id) {
+    content.appendChild(createNoteEditor(record));
+  }
+
+  main.append(selectCheckbox, content);
+  card.appendChild(main);
+  return card;
+}
+
+function createNoteEditor(record) {
+  const editor = document.createElement("div");
+  editor.className = "note-editor";
 
   const noteLabel = document.createElement("label");
   noteLabel.className = "note-label";
@@ -3136,16 +3201,35 @@ function createWatchCard(record) {
 
   const noteInput = document.createElement("textarea");
   noteInput.placeholder = "点击备注";
-  noteInput.value = record.note;
-  noteInput.addEventListener("input", (event) => updateNote(record.id, event.target.value));
+  noteInput.value = editingNoteDraft;
+  noteInput.addEventListener("input", (event) => {
+    editingNoteDraft = event.target.value;
+  });
   noteLabel.appendChild(noteInput);
+
+  const editorActions = document.createElement("div");
+  editorActions.className = "note-editor-actions";
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.className = "save-note-btn";
+  saveButton.textContent = "保存";
+  saveButton.addEventListener("click", () => saveNote(record.id));
+
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.className = "cancel-note-btn";
+  cancelButton.textContent = "取消";
+  cancelButton.addEventListener("click", cancelEditNote);
+
+  editorActions.append(saveButton, cancelButton);
 
   const meta = document.createElement("div");
   meta.className = "meta";
-  meta.innerHTML = `<span>创建时间：${record.createdAt}</span><span>更新时间：${record.updatedAt}</span>`;
+  meta.innerHTML = `<span>创建：${record.createdAt}</span><span>更新：${record.updatedAt}</span>`;
 
-  card.append(top, noteLabel, meta);
-  return card;
+  editor.append(noteLabel, editorActions, meta);
+  return editor;
 }
 
 
@@ -3194,13 +3278,81 @@ function toggleStar(recordId) {
   renderWatchlist();
 }
 
-function updateNote(recordId, note) {
+function pruneSelectedRecords() {
+  const existingIds = new Set(watchRecords.map((record) => record.id));
+  selectedWatchItemIds.forEach((id) => {
+    if (!existingIds.has(id)) {
+      selectedWatchItemIds.delete(id);
+    }
+  });
+}
+
+function toggleSelection(recordId, isSelected) {
+  if (isSelected) {
+    selectedWatchItemIds.add(recordId);
+  } else {
+    selectedWatchItemIds.delete(recordId);
+  }
+  renderWatchlist();
+}
+
+function toggleSelectAllVisible() {
+  const filteredRecords = getFilteredRecords();
+  const shouldSelectAll = elements.selectAllVisible.checked;
+
+  filteredRecords.forEach((record) => {
+    if (shouldSelectAll) {
+      selectedWatchItemIds.add(record.id);
+    } else {
+      selectedWatchItemIds.delete(record.id);
+    }
+  });
+
+  renderWatchlist();
+}
+
+function startEditNote(recordId) {
   const record = findRecord(recordId);
   if (!record) return;
 
-  record.note = note;
+  editingNoteItemId = recordId;
+  editingNoteDraft = record.note || "";
+  renderWatchlist();
+}
+
+function saveNote(recordId) {
+  const record = findRecord(recordId);
+  if (!record) return;
+
+  record.note = editingNoteDraft.trim();
   touchRecord(record);
   saveRecords();
+  editingNoteItemId = null;
+  editingNoteDraft = "";
+  renderWatchlist();
+  showToast("备注已保存");
+}
+
+function cancelEditNote() {
+  editingNoteItemId = null;
+  editingNoteDraft = "";
+  renderWatchlist();
+}
+
+function bulkDeleteSelected() {
+  const selectedCount = selectedWatchItemIds.size;
+  if (selectedCount === 0) return;
+
+  const confirmed = window.confirm(`确定要删除选中的 ${selectedCount} 条观察记录吗？此操作不可撤销。`);
+  if (!confirmed) return;
+
+  watchRecords = watchRecords.filter((record) => !selectedWatchItemIds.has(record.id));
+  selectedWatchItemIds.clear();
+  editingNoteItemId = null;
+  editingNoteDraft = "";
+  saveRecords();
+  renderAll();
+  showToast(`已删除 ${selectedCount} 条观察记录`);
 }
 
 function deleteRecord(recordId) {
@@ -3211,6 +3363,11 @@ function deleteRecord(recordId) {
   if (!confirmed) return;
 
   watchRecords = watchRecords.filter((item) => item.id !== recordId);
+  selectedWatchItemIds.delete(recordId);
+  if (editingNoteItemId === recordId) {
+    editingNoteItemId = null;
+    editingNoteDraft = "";
+  }
   saveRecords();
   renderAll();
   showToast("已删除观察记录");
@@ -3240,6 +3397,9 @@ function bindFilters() {
     element.addEventListener("input", renderWatchlist);
     element.addEventListener("change", renderWatchlist);
   });
+
+  elements.selectAllVisible.addEventListener("change", toggleSelectAllVisible);
+  elements.bulkDeleteBtn.addEventListener("click", bulkDeleteSelected);
 }
 
 renderLevel1Filters();
