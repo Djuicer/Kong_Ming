@@ -63,6 +63,15 @@
           </label>
         </div>
 
+        <div class="bulk-actions" aria-label="观察池批量操作">
+          <label class="bulk-select">
+            <input id="selectAllVisible" type="checkbox">
+            <span>全选</span>
+          </label>
+          <span id="selectedCount" class="selected-count">已选择 0 条</span>
+          <button id="bulkDeleteBtn" class="bulk-delete-btn" type="button" disabled>删除所选</button>
+        </div>
+
         <div id="watchlist" class="watchlist" aria-live="polite"></div>
       </section>
     </main>
