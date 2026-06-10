@@ -3071,10 +3071,10 @@ function createWatchCard(record) {
 
   const noteLabel = document.createElement("label");
   noteLabel.className = "note-label";
-  noteLabel.textContent = "一句话理由 / 备注";
+  noteLabel.textContent = "备注";
 
   const noteInput = document.createElement("textarea");
-  noteInput.placeholder = "例如：新能源车需求恢复，关注周期修复。";
+  noteInput.placeholder = "点击备注";
   noteInput.value = record.note;
   noteInput.addEventListener("input", (event) => updateNote(record.id, event.target.value));
   noteLabel.appendChild(noteInput);
