@@ -3200,7 +3200,7 @@ function createNoteEditor(record) {
   noteLabel.textContent = "备注";
 
   const noteInput = document.createElement("textarea");
-  noteInput.placeholder = "记录观察理由、催化因素或后续动作";
+  noteInput.placeholder = "点击备注";
   noteInput.value = editingNoteDraft;
   noteInput.addEventListener("input", (event) => {
     editingNoteDraft = event.target.value;
