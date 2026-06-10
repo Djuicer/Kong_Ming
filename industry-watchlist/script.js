@@ -2898,6 +2898,9 @@ function createPickerLeafItem(industry, onAdd) {
   name.textContent = formatIndustryLabel(industry);
 
   const alreadyAdded = isAdded(industry.code);
+  const actions = document.createElement("div");
+  actions.className = "picker-item-actions";
+
   const addButton = document.createElement("button");
   addButton.type = "button";
   addButton.className = "add-btn";
@@ -2905,8 +2908,22 @@ function createPickerLeafItem(industry, onAdd) {
   addButton.disabled = alreadyAdded;
   addButton.setAttribute("aria-label", `加入 ${formatIndustryLabel(industry)} 到观察池`);
   addButton.addEventListener("click", onAdd);
+  actions.appendChild(addButton);
 
-  row.append(name, addButton);
+  if (alreadyAdded) {
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "copy-code-btn";
+    copyButton.textContent = "复制代码";
+    copyButton.setAttribute("aria-label", `复制 ${formatIndustryLabel(industry)} 的行业代码`);
+    copyButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      copyIndustryCode(industry.code);
+    });
+    actions.appendChild(copyButton);
+  }
+
+  row.append(name, actions);
   return row;
 }
 
@@ -2964,11 +2981,52 @@ function addToWatchlist(level1, level2 = null, level3 = null) {
   });
 
   saveRecords();
-  pickerState.level = 1;
-  pickerState.selectedLevel1 = null;
-  pickerState.selectedLevel2 = null;
   renderAll();
   showToast("已加入观察池");
+}
+
+async function copyIndustryCode(code) {
+  const codeText = String(code);
+  let clipboardError = null;
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    try {
+      await navigator.clipboard.writeText(codeText);
+      showToast(`已复制代码：${codeText}`);
+      return;
+    } catch (error) {
+      clipboardError = error;
+    }
+  }
+
+  try {
+    fallbackCopyText(codeText);
+    showToast(`已复制代码：${codeText}`);
+  } catch (error) {
+    console.warn("行业代码复制失败。", clipboardError || error);
+    showToast("复制失败，请手动复制");
+  }
+}
+
+function fallbackCopyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  try {
+    const copied = document.execCommand("copy");
+    if (!copied) {
+      throw new Error("document.execCommand copy returned false");
+    }
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 function getFilteredRecords() {
@@ -3074,10 +3132,10 @@ function createWatchCard(record) {
 
   const noteLabel = document.createElement("label");
   noteLabel.className = "note-label";
-  noteLabel.textContent = "一句话理由 / 备注";
+  noteLabel.textContent = "备注";
 
   const noteInput = document.createElement("textarea");
-  noteInput.placeholder = "例如：新能源车需求恢复，关注周期修复。";
+  noteInput.placeholder = "点击备注";
   noteInput.value = record.note;
   noteInput.addEventListener("input", (event) => updateNote(record.id, event.target.value));
   noteLabel.appendChild(noteInput);

@@ -241,6 +241,7 @@ h2 {
 }
 
 .add-btn,
+.copy-code-btn,
 .status-btn,
 .star-btn,
 .delete-btn {
@@ -251,7 +252,16 @@ h2 {
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.add-btn {
+.picker-item-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.add-btn,
+.copy-code-btn {
   flex: 0 0 auto;
   min-width: 34px;
   height: 30px;
@@ -259,7 +269,8 @@ h2 {
   font-weight: 700;
 }
 
-.add-btn:hover:not(:disabled) {
+.add-btn:hover:not(:disabled),
+.copy-code-btn:hover {
   color: #fff;
   background: var(--primary);
   border-color: var(--primary);
