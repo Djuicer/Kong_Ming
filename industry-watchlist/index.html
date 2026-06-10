@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>极简行业观察池</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">Industry Watchlist</p>
+        <h1>极简行业观察池</h1>
+      </div>
+      <p class="site-description">从一级行业逐层筛选到三级行业，一键加入观察池，后续再补充理由。</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel tree-panel" aria-labelledby="tree-title">
+        <div class="panel-header">
+          <div>
+            <p class="section-label">行业树</p>
+            <h2 id="tree-title">选择三级行业</h2>
+          </div>
+          <span class="hint">展开后点击 + 添加</span>
+        </div>
+        <div id="industryTree" class="industry-tree" aria-live="polite"></div>
+      </section>
+
+      <section class="panel watch-panel" aria-labelledby="watch-title">
+        <div class="panel-header watch-header">
+          <div>
+            <p class="section-label">观察池</p>
+            <h2 id="watch-title">已加入的三级行业</h2>
+          </div>
+          <span id="watchCount" class="count-badge">0 条</span>
+        </div>
+
+        <div class="filters" aria-label="观察池筛选区">
+          <label class="filter-field filter-search">
+            <span>搜索</span>
+            <input id="searchInput" type="search" placeholder="行业、路径或理由">
+          </label>
+          <label class="filter-field">
+            <span>一级行业</span>
+            <select id="level1Filter"></select>
+          </label>
+          <label class="filter-field">
+            <span>状态</span>
+            <select id="statusFilter">
+              <option value="all">全部</option>
+              <option value="观察中">观察中</option>
+              <option value="已选股">已选股</option>
+              <option value="已放弃">已放弃</option>
+            </select>
+          </label>
+          <label class="filter-field">
+            <span>星标</span>
+            <select id="starFilter">
+              <option value="all">全部</option>
+              <option value="starred">只看星标</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="watchlist" class="watchlist" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
