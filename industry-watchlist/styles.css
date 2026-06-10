@@ -172,8 +172,13 @@ h2 {
   transition: transform 0.16s ease;
 }
 
-.tree-toggle[aria-expanded="true"] .chevron {
+.tree-toggle[aria-expanded="true"] .chevron,
+.level2-toggle[aria-expanded="true"] .chevron {
   transform: rotate(90deg);
+}
+
+.tree-leaf {
+  cursor: default;
 }
 
 .tree-children {
