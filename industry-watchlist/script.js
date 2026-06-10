@@ -2964,9 +2964,6 @@ function addToWatchlist(level1, level2 = null, level3 = null) {
   });
 
   saveRecords();
-  pickerState.level = 1;
-  pickerState.selectedLevel1 = null;
-  pickerState.selectedLevel2 = null;
   renderAll();
   showToast("已加入观察池");
 }
