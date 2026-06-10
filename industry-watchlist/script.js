@@ -2643,6 +2643,11 @@ const statusList = ["观察中", "已选股", "已放弃"];
 
 let watchRecords = loadRecords();
 let toastTimer = null;
+let pickerState = {
+  level: 1,
+  selectedLevel1: null,
+  selectedLevel2: null
+};
 
 const elements = {
   industryTree: document.querySelector("#industryTree"),
@@ -2689,20 +2694,6 @@ function hasChildren(industry) {
   return Array.isArray(industry.children) && industry.children.length > 0;
 }
 
-function appendTreeLabel(parent, industry, withChevron) {
-  const wrapper = document.createElement("span");
-
-  if (withChevron) {
-    const chevron = document.createElement("span");
-    chevron.className = "chevron";
-    chevron.textContent = "›";
-    wrapper.appendChild(chevron);
-  }
-
-  wrapper.append(formatIndustryLabel(industry));
-  parent.appendChild(wrapper);
-}
-
 function isAdded(level3Id) {
   return watchRecords.some((record) => record.level3Id === level3Id);
 }
@@ -2717,96 +2708,218 @@ function renderLevel1Filters() {
   });
 }
 
-function renderIndustryTree() {
+function renderIndustryPicker() {
   elements.industryTree.innerHTML = "";
+  elements.industryTree.appendChild(createPickerHeader());
 
-  industryData.forEach((level1) => {
-    const group = document.createElement("article");
-    group.className = "tree-group";
+  if (pickerState.level === 1) {
+    renderLevel1Picker();
+    return;
+  }
 
-    const hasLevel2 = hasChildren(level1);
-    const level1Row = document.createElement(hasLevel2 ? "button" : "div");
-    level1Row.className = `tree-row tree-toggle${hasLevel2 ? "" : " tree-leaf"}`;
-    appendTreeLabel(level1Row, level1, hasLevel2);
+  if (pickerState.level === 2) {
+    renderLevel2Picker();
+    return;
+  }
 
-    if (hasLevel2) {
-      level1Row.type = "button";
-      level1Row.setAttribute("aria-expanded", "true");
-    }
-
-    const level1Children = document.createElement("div");
-    level1Children.className = "tree-children";
-
-    if (hasLevel2) {
-      level1Row.addEventListener("click", () => toggleTree(level1Row, level1Children));
-
-      level1.children.forEach((level2) => {
-        const level2Group = document.createElement("div");
-        level2Group.className = "level2-group";
-
-        const hasLevel3 = hasChildren(level2);
-        const level2Row = document.createElement(hasLevel3 ? "button" : "div");
-        level2Row.className = `tree-row level2-toggle${hasLevel3 ? "" : " tree-leaf"}`;
-        appendTreeLabel(level2Row, level2, hasLevel3);
-
-        if (hasLevel3) {
-          level2Row.type = "button";
-          level2Row.setAttribute("aria-expanded", "true");
-        }
-
-        const level3List = document.createElement("div");
-        level3List.className = "level3-list";
-
-        if (hasLevel3) {
-          level2Row.addEventListener("click", () => toggleTree(level2Row, level3List));
-
-          level2.children.forEach((level3) => {
-            const row = document.createElement("div");
-            row.className = "level3-row";
-
-            const name = document.createElement("span");
-            name.textContent = formatIndustryLabel(level3);
-
-            const alreadyAdded = isAdded(level3.id);
-            const addButton = document.createElement("button");
-            addButton.type = "button";
-            addButton.className = "add-btn";
-            addButton.textContent = alreadyAdded ? "已加入" : "+";
-            addButton.disabled = alreadyAdded;
-            addButton.setAttribute("aria-label", `加入 ${formatIndustryLabel(level3)} 到观察池`);
-            addButton.addEventListener("click", () => addToWatchlist(level1, level2, level3));
-
-            row.append(name, addButton);
-            level3List.appendChild(row);
-          });
-
-          level2Group.append(level2Row, level3List);
-        } else {
-          level2Group.appendChild(level2Row);
-        }
-
-        level1Children.appendChild(level2Group);
-      });
-
-      group.append(level1Row, level1Children);
-    } else {
-      group.appendChild(level1Row);
-    }
-
-    elements.industryTree.appendChild(group);
-  });
+  renderLevel3Picker();
 }
 
-function toggleTree(button, content) {
-  const isExpanded = button.getAttribute("aria-expanded") === "true";
-  button.setAttribute("aria-expanded", String(!isExpanded));
-  content.hidden = isExpanded;
+function createPickerHeader() {
+  const header = document.createElement("div");
+  header.className = "picker-meta";
+
+  const path = document.createElement("div");
+  path.className = "picker-path";
+
+  const label = document.createElement("span");
+  label.className = "picker-path-label";
+  label.textContent = "当前选择";
+
+  const value = document.createElement("span");
+  value.textContent = getCurrentPickerPath();
+
+  path.append(label, value);
+  header.appendChild(path);
+
+  const actions = document.createElement("div");
+  actions.className = "picker-actions";
+
+  if (pickerState.level === 2) {
+    actions.appendChild(createPickerBackButton("返回一级行业", resetPickerToLevel1));
+  }
+
+  if (pickerState.level === 3) {
+    actions.append(
+      createPickerBackButton("返回二级行业", backToLevel2),
+      createPickerBackButton("重新选择一级行业", resetPickerToLevel1)
+    );
+  }
+
+  if (actions.children.length > 0) {
+    header.appendChild(actions);
+  }
+
+  return header;
+}
+
+function getCurrentPickerPath() {
+  if (pickerState.level === 1 || !pickerState.selectedLevel1) {
+    return "一级行业";
+  }
+
+  const level1Label = formatIndustryLabel(pickerState.selectedLevel1);
+  if (pickerState.level === 2 || !pickerState.selectedLevel2) {
+    return level1Label;
+  }
+
+  return `${level1Label} / ${formatIndustryLabel(pickerState.selectedLevel2)}`;
+}
+
+function createPickerBackButton(text, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "picker-back-btn";
+  button.textContent = text;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function renderLevel1Picker() {
+  const list = createPickerList();
+
+  industryData.forEach((level1) => {
+    const item = createPickerNavItem(level1, "选择一级行业");
+    item.addEventListener("click", () => {
+      pickerState.level = 2;
+      pickerState.selectedLevel1 = level1;
+      pickerState.selectedLevel2 = null;
+      renderIndustryPicker();
+    });
+    list.appendChild(item);
+  });
+
+  elements.industryTree.appendChild(list);
+}
+
+function renderLevel2Picker() {
+  const level1 = pickerState.selectedLevel1;
+  if (!level1) {
+    resetPickerToLevel1();
+    return;
+  }
+
+  if (!hasChildren(level1)) {
+    elements.industryTree.appendChild(createPickerEmptyState("该一级行业暂无二级行业。"));
+    return;
+  }
+
+  const list = createPickerList();
+  level1.children.forEach((level2) => {
+    const item = createPickerNavItem(level2, "选择二级行业");
+    item.addEventListener("click", () => {
+      pickerState.level = 3;
+      pickerState.selectedLevel2 = level2;
+      renderIndustryPicker();
+    });
+    list.appendChild(item);
+  });
+
+  elements.industryTree.appendChild(list);
+}
+
+function renderLevel3Picker() {
+  const level1 = pickerState.selectedLevel1;
+  const level2 = pickerState.selectedLevel2;
+  if (!level1) {
+    resetPickerToLevel1();
+    return;
+  }
+
+  if (!level2) {
+    backToLevel2();
+    return;
+  }
+
+  if (!hasChildren(level2)) {
+    elements.industryTree.appendChild(createPickerEmptyState("该二级行业暂无三级行业。"));
+    return;
+  }
+
+  const list = createPickerList();
+  level2.children.forEach((level3) => {
+    const row = document.createElement("div");
+    row.className = "picker-item picker-leaf-item";
+
+    const name = document.createElement("span");
+    name.className = "picker-item-title";
+    name.textContent = formatIndustryLabel(level3);
+
+    const alreadyAdded = isAdded(level3.id);
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "add-btn";
+    addButton.textContent = alreadyAdded ? "已加入" : "+";
+    addButton.disabled = alreadyAdded;
+    addButton.setAttribute("aria-label", `加入 ${formatIndustryLabel(level3)} 到观察池`);
+    addButton.addEventListener("click", () => addToWatchlist(level1, level2, level3));
+
+    row.append(name, addButton);
+    list.appendChild(row);
+  });
+
+  elements.industryTree.appendChild(list);
+}
+
+function createPickerList() {
+  const list = document.createElement("div");
+  list.className = "picker-list";
+  return list;
+}
+
+function createPickerNavItem(industry, title) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "picker-item picker-nav-item";
+  button.title = title;
+
+  const name = document.createElement("span");
+  name.className = "picker-item-title";
+  name.textContent = formatIndustryLabel(industry);
+
+  const arrow = document.createElement("span");
+  arrow.className = "picker-arrow";
+  arrow.textContent = "›";
+  arrow.setAttribute("aria-hidden", "true");
+
+  button.append(name, arrow);
+  return button;
+}
+
+function createPickerEmptyState(message) {
+  const empty = document.createElement("div");
+  empty.className = "empty-state picker-empty";
+  empty.textContent = message;
+  return empty;
+}
+
+function resetPickerToLevel1() {
+  pickerState.level = 1;
+  pickerState.selectedLevel1 = null;
+  pickerState.selectedLevel2 = null;
+  renderIndustryPicker();
+}
+
+function backToLevel2() {
+  pickerState.level = 2;
+  pickerState.selectedLevel2 = null;
+  renderIndustryPicker();
 }
 
 function addToWatchlist(level1, level2, level3) {
   if (isAdded(level3.id)) {
     showToast("该行业已在观察池中");
-    renderIndustryTree();
+    renderIndustryPicker();
     return;
   }
 
@@ -2830,6 +2943,9 @@ function addToWatchlist(level1, level2, level3) {
   });
 
   saveRecords();
+  pickerState.level = 1;
+  pickerState.selectedLevel1 = null;
+  pickerState.selectedLevel2 = null;
   renderAll();
   showToast("已加入观察池");
 }
@@ -2869,7 +2985,7 @@ function renderWatchlist() {
   elements.watchlist.innerHTML = "";
 
   if (watchRecords.length === 0) {
-    elements.watchlist.innerHTML = '<div class="empty-state">还没有加入任何三级行业。请从左侧行业树中点击 + 添加。</div>';
+    elements.watchlist.innerHTML = '<div class="empty-state">还没有加入任何三级行业。请从左侧行业选择器中逐级添加。</div>';
     return;
   }
 
@@ -3018,7 +3134,7 @@ function showToast(message) {
 }
 
 function renderAll() {
-  renderIndustryTree();
+  renderIndustryPicker();
   renderWatchlist();
 }
 
