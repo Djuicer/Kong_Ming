@@ -3075,7 +3075,7 @@ function renderWatchlist() {
   renderBulkActions(filteredRecords);
 
   if (watchRecords.length === 0) {
-    elements.watchlist.innerHTML = '<div class="empty-state">还没有加入任何行业。请从左侧行业选择器中添加无下级行业。</div>';
+    elements.watchlist.innerHTML = '<div class="empty-state">未加入行业</div>';
     return;
   }
 
