@@ -2643,6 +2643,7 @@ const statusList = ["观察中", "已选股", "已放弃"];
 
 let watchRecords = loadRecords();
 let selectedWatchItemIds = new Set();
+let openActionMenuItemId = null;
 let editingNoteItemId = null;
 let editingNoteDraft = "";
 let toastTimer = null;
@@ -3074,7 +3075,7 @@ function renderWatchlist() {
   renderBulkActions(filteredRecords);
 
   if (watchRecords.length === 0) {
-    elements.watchlist.innerHTML = '<div class="empty-state">还没有加入任何行业。请从左侧行业选择器中添加无下级行业。</div>';
+    elements.watchlist.innerHTML = '<div class="empty-state">未加入行业</div>';
     return;
   }
 
@@ -3093,7 +3094,7 @@ function renderBulkActions(filteredRecords) {
   const selectedVisibleCount = visibleIds.filter((id) => selectedWatchItemIds.has(id)).length;
   const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
 
-  elements.selectedCount.textContent = `已选择 ${selectedWatchItemIds.size} 条`;
+  elements.selectedCount.textContent = `已选 ${selectedWatchItemIds.size} 条`;
   elements.bulkDeleteBtn.disabled = selectedWatchItemIds.size === 0;
   elements.selectAllVisible.checked = allVisibleSelected;
   elements.selectAllVisible.disabled = visibleIds.length === 0;
@@ -3102,7 +3103,7 @@ function renderBulkActions(filteredRecords) {
 
 function createWatchCard(record) {
   const card = document.createElement("article");
-  card.className = `watch-card${editingNoteItemId === record.id ? " is-editing" : ""}`;
+  card.className = `watch-card${editingNoteItemId === record.id ? " is-editing" : ""}${openActionMenuItemId === record.id ? " has-open-menu" : ""}`;
 
   const main = document.createElement("div");
   main.className = "card-main";
@@ -3150,30 +3151,13 @@ function createWatchCard(record) {
   const statusButton = document.createElement("button");
   statusButton.type = "button";
   statusButton.className = `status-btn ${getStatusClass(record.status)}`;
-  statusButton.textContent = record.status;
+  statusButton.textContent = `${record.status} ▾`;
   statusButton.title = "点击切换状态";
   statusButton.addEventListener("click", () => toggleStatus(record.id));
 
-  const copyButton = document.createElement("button");
-  copyButton.type = "button";
-  copyButton.className = "watch-copy-btn";
-  copyButton.textContent = "复制代码";
-  copyButton.addEventListener("click", () => copyIndustryCode(record.selectedCode));
+  const moreActions = createActionMenu(record);
 
-  const editButton = document.createElement("button");
-  editButton.type = "button";
-  editButton.className = "edit-note-btn";
-  editButton.textContent = "编辑备注";
-  editButton.addEventListener("click", () => startEditNote(record.id));
-
-  const deleteButton = document.createElement("button");
-  deleteButton.type = "button";
-  deleteButton.className = "delete-btn";
-  deleteButton.textContent = "删除";
-  deleteButton.title = "删除记录";
-  deleteButton.addEventListener("click", () => deleteRecord(record.id));
-
-  actions.append(starButton, statusButton, copyButton, editButton, deleteButton);
+  actions.append(starButton, statusButton, moreActions);
   top.append(titleBox, actions);
 
   const notePreview = document.createElement("p");
@@ -3189,6 +3173,70 @@ function createWatchCard(record) {
   main.append(selectCheckbox, content);
   card.appendChild(main);
   return card;
+}
+
+function createActionMenu(record) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "action-menu-wrap";
+
+  const menuId = `action-menu-${record.id}`;
+  const isOpen = openActionMenuItemId === record.id;
+
+  const moreButton = document.createElement("button");
+  moreButton.type = "button";
+  moreButton.className = `more-actions-btn${isOpen ? " is-active" : ""}`;
+  moreButton.textContent = "⋯";
+  moreButton.setAttribute("aria-label", `更多操作：${formatRecordLabel(record.selectedCode, record.selectedName)}`);
+  moreButton.setAttribute("aria-haspopup", "menu");
+  moreButton.setAttribute("aria-expanded", String(isOpen));
+  moreButton.setAttribute("aria-controls", menuId);
+  moreButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleActionMenu(record.id);
+  });
+
+  wrapper.appendChild(moreButton);
+
+  if (isOpen) {
+    const menu = document.createElement("div");
+    menu.id = menuId;
+    menu.className = "action-menu";
+    menu.setAttribute("role", "menu");
+    menu.addEventListener("click", (event) => event.stopPropagation());
+
+    menu.append(
+      createActionMenuButton("复制代码", () => {
+        closeActionMenu(false);
+        copyIndustryCode(record.selectedCode);
+        renderWatchlist();
+      }),
+      createActionMenuButton("编辑备注", () => {
+        closeActionMenu(false);
+        startEditNote(record.id);
+      }),
+      createActionMenuButton("删除", () => {
+        closeActionMenu();
+        deleteRecord(record.id);
+      }, "danger")
+    );
+
+    wrapper.appendChild(menu);
+  }
+
+  return wrapper;
+}
+
+function createActionMenuButton(text, onClick, variant = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `action-menu-item${variant ? ` ${variant}` : ""}`;
+  button.textContent = text;
+  button.setAttribute("role", "menuitem");
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  return button;
 }
 
 function createNoteEditor(record) {
@@ -3311,10 +3359,29 @@ function toggleSelectAllVisible() {
   renderWatchlist();
 }
 
+function toggleActionMenu(recordId) {
+  openActionMenuItemId = openActionMenuItemId === recordId ? null : recordId;
+  renderWatchlist();
+}
+
+function closeActionMenu(shouldRender = true) {
+  if (!openActionMenuItemId) return;
+
+  openActionMenuItemId = null;
+  if (shouldRender) {
+    renderWatchlist();
+  }
+}
+
+function handleDocumentClick() {
+  closeActionMenu();
+}
+
 function startEditNote(recordId) {
   const record = findRecord(recordId);
   if (!record) return;
 
+  openActionMenuItemId = null;
   editingNoteItemId = recordId;
   editingNoteDraft = record.note || "";
   renderWatchlist();
@@ -3327,6 +3394,7 @@ function saveNote(recordId) {
   record.note = editingNoteDraft.trim();
   touchRecord(record);
   saveRecords();
+  openActionMenuItemId = null;
   editingNoteItemId = null;
   editingNoteDraft = "";
   renderWatchlist();
@@ -3348,6 +3416,7 @@ function bulkDeleteSelected() {
 
   watchRecords = watchRecords.filter((record) => !selectedWatchItemIds.has(record.id));
   selectedWatchItemIds.clear();
+  openActionMenuItemId = null;
   editingNoteItemId = null;
   editingNoteDraft = "";
   saveRecords();
@@ -3364,6 +3433,7 @@ function deleteRecord(recordId) {
 
   watchRecords = watchRecords.filter((item) => item.id !== recordId);
   selectedWatchItemIds.delete(recordId);
+  openActionMenuItemId = null;
   if (editingNoteItemId === recordId) {
     editingNoteItemId = null;
     editingNoteDraft = "";
@@ -3400,6 +3470,7 @@ function bindFilters() {
 
   elements.selectAllVisible.addEventListener("change", toggleSelectAllVisible);
   elements.bulkDeleteBtn.addEventListener("click", bulkDeleteSelected);
+  document.addEventListener("click", handleDocumentClick);
 }
 
 renderLevel1Filters();
